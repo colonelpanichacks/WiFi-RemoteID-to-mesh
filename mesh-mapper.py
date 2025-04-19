@@ -1385,12 +1385,12 @@ def serial_reader(port):
                 except json.JSONDecodeError:
                     print("Ignoring invalid JSON line:", line)
                     continue
-                    # Ignore heartbeat messages
-                    if 'heartbeat' in detection:
-                        continue
                 # Support payloads using 'remote_id' by aliasing it to 'basic_id'
                 if 'remote_id' in detection and 'basic_id' not in detection:
                     detection['basic_id'] = detection['remote_id']
+                # Ignore heartbeat messages entirely
+                if 'heartbeat' in detection:
+                    continue
                 update_detection(detection)
                 print("Received detection from", port, ":", detection)
                 
