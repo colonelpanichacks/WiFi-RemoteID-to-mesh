@@ -13,24 +13,7 @@ from flask import Flask, request, jsonify, redirect, url_for, render_template_st
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-# Keep track of open serial ports for broadcasting
-serial_objs = {}
-serial_objs_lock = threading.Lock()
 
-def broadcast_to_ports(message, origin_port):
-    """Broadcast message to all serial ports except the origin."""
-    print(f"[DBG] broadcast_to_ports called from {origin_port} with message: {message.strip()}")
-    print(f"[DBG] broadcast_to_ports: origin_port={repr(origin_port)}, registered ports={list(serial_objs.keys())}")
-    with serial_objs_lock:
-        for p, ser in serial_objs.items():
-            print(f"[DBG] Comparing port key {repr(p)} to origin_port {repr(origin_port)}; equal: {p == origin_port}")
-            if p.strip() != origin_port.strip() and ser.is_open:
-                try:
-                    print(f"[DBG] Attempting to send broadcast to {p}")
-                    ser.write(message.encode('utf-8'))
-                    print(f"[DBG] Sent broadcast to {p}")
-                except Exception as e:
-                    print(f"Error broadcasting to {p}: {e}")
 
 app = Flask(__name__)
 
@@ -1374,9 +1357,6 @@ def serial_reader(port):
                 ser = serial.Serial(port, BAUD_RATE, timeout=1)
                 serial_connected_status[port] = True
                 print(f"Opened serial port {port} at {BAUD_RATE} baud.")
-                # Register this port’s Serial instance for broadcasting
-                with serial_objs_lock:
-                  serial_objs[port] = ser
             except Exception as e:
                 serial_connected_status[port] = False
                 print(f"Error opening serial port {port}: {e}")
@@ -1410,8 +1390,7 @@ def serial_reader(port):
                     detection['basic_id'] = detection['remote_id']
                 update_detection(detection)
                 print("Received detection from", port, ":", detection)
-                # Broadcast the raw JSON we just read to all other ports
-                broadcast_to_ports(json_str + '\n', port)
+                
             else:
                 time.sleep(0.1)
         except (serial.SerialException, OSError) as e:
